@@ -1,120 +1,84 @@
-import io.restassured.RestAssured;
-import org.junit.After;
-import org.junit.Before;
 import org.junit.Test;
 
-import io.qameta.allure.Step;
 import io.restassured.response.Response;
 
-import java.util.Random;
+import api.CourierApi;
+import classes.Courier;
+import classes.CourierLogin;
 
-import static io.restassured.RestAssured.given;
+import java.util.UUID;
+
+
+import static org.hamcrest.Matchers.notNullValue;
 import static org.hamcrest.Matchers.equalTo;
 
-public class CreateCourierTest {
+public class CreateCourierTest extends BaseTest {
 
-    private String login;
-    private String password;
-    private String firstName;
-    private Integer courierId;
+    private final CourierApi courierApi = new CourierApi();
 
-    @Before
-    public void setUp() {
-        RestAssured.baseURI = "https://qa-scooter.praktikum-services.ru";
-        login = "ninja" + new Random().nextInt(1000000);
-        password = "1234";
-        firstName = "saske";
+    private String uniqueLogin() {
+        return "ninja_" + UUID.randomUUID().toString().substring(0, 8);
     }
 
     @Test
     public void createNewCourier() {
 
-        String body = "{ \"login\": \"" + login + "\", " + "\"password\": \"" + password + "\", " + "\"firstName\": \"" + firstName + "\" }";
+        String login = uniqueLogin();
+        String password = "1234";
+        Courier courier = new Courier(login, password, "saske");
 
-        Response response = sendCreateCourier(body);
+        Response create = courierApi.createCourier(courier);
+        create.then().statusCode(201).body("ok", equalTo(true));
 
-        checkStatusCode(response, 201);
-        checkOkTrue(response);
+        int courierId = courierApi.loginCourier(new CourierLogin(login, password))
+                .then().statusCode(200).body("id", notNullValue())
+                .extract().path("id");
 
-        courierId = loginCourier(login, password);
+        courierApi.deleteCourier(courierId).then().statusCode(200).body("ok", equalTo(true));
+    }
+
+    @Test
+    public void createCourierWithoutPassword() {
+
+        Courier courier = new Courier(uniqueLogin(), null, "saske");
+
+        courierApi.createCourier(courier)
+                .then()
+                .statusCode(400)
+                .body("message", equalTo("Недостаточно данных для создания учетной записи"));
     }
 
     @Test
     public void createCourierWithoutLogin() {
 
-        String body = "{ \"password\": \"" + password + "\", " +
-                "\"firstName\": \"" + firstName + "\" }";
+        Courier courier = new Courier(null, "1234", "saske");
 
-        Response response = sendCreateCourier(body);
-
-        checkStatusCode(response, 400);
-        checkMessage(response, "Недостаточно данных для создания учетной записи");
+        courierApi.createCourier(courier)
+                .then()
+                .statusCode(400)
+                .body("message", equalTo("Недостаточно данных для создания учетной записи"));
     }
 
     @Test
     public void cannotCreateTwoSameCouriers() {
 
-        String body = "{ \"login\": \"" + login + "\", " +
-                "\"password\": \"" + password + "\", " +
-                "\"firstName\": \"" + firstName + "\" }";
+        String login = uniqueLogin();
+        String password = "1234";
+        Courier courier = new Courier(login, password, "saske");
 
-        Response firstResponse = sendCreateCourier(body);
-        checkStatusCode(firstResponse, 201);
+        courierApi.createCourier(courier).then().statusCode(201);
 
-        courierId = loginCourier(login, password);
-
-        Response secondResponse = sendCreateCourier(body);
-        checkStatusCode(secondResponse, 409);
-        checkMessage(secondResponse, "Этот логин уже используется");
-    }
-
-
-
-    @Step("Отправить запрос на создание курьера")
-    public Response sendCreateCourier(String body) {
-        return given()
-                .header("Content-type", "application/json")
-                .body(body)
-                .post("/api/v1/courier");
-    }
-
-    @Step("Авторизоваться данными курьера")
-    public Integer loginCourier(String login, String password) {
-        return given()
-                .header("Content-type", "application/json")
-                .body("{ \"login\": \"" + login + "\", \"password\": \"" + password + "\" }")
-                .post("/api/v1/courier/login")
+        courierApi.createCourier(courier)
                 .then()
-                .extract()
-                .path("id");
+                .statusCode(409)
+                .body("message", equalTo("Этот логин уже используется"));
+
+        int courierId = courierApi.loginCourier(new CourierLogin(login, password))
+                .then().statusCode(200)
+                .extract().path("id");
+
+        courierApi.deleteCourier(courierId).then().statusCode(200);
     }
 
-    @Step("Удалить курьера")
-    public void deleteCourier(Integer id) {
-        given()
-                .delete("/api/v1/courier/" + id);
-    }
-
-    @Step("Проверить код ответа")
-    public void checkStatusCode(Response response, int statusCode) {
-        response.then().statusCode(statusCode);
-    }
-
-    @Step("Проверить поле ok")
-    public void checkOkTrue(Response response) {
-        response.then().body("ok", equalTo(true));
-    }
-
-    @Step("Проверить сообщение ошибки")
-    public void checkMessage(Response response, String message) {
-        response.then().body("message", equalTo(message));
-    }
-
-    @After
-    public void tearDown() {
-        if (courierId != null) {
-            deleteCourier(courierId);
-            courierId = null;
-        }
-    }
+    // тут были степы, я их перенесла в классы в папке api
 }

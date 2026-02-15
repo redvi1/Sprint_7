@@ -1,22 +1,26 @@
-import io.restassured.RestAssured;
-import org.junit.Before;
 import org.junit.Test;
 
 import io.restassured.response.Response;
-import io.qameta.allure.Step;
 
 import org.junit.runner.RunWith;
 import org.junit.runners.Parameterized;
 
 import java.util.*;
 
-import static io.restassured.RestAssured.given;
 import static org.hamcrest.Matchers.notNullValue;
 
+import api.OrderApi;
+import classes.Order;
+
+import java.util.Arrays;
+import java.util.Collection;
+import java.util.List;
+
 @RunWith(Parameterized.class)
-public class CreateOrderTest {
+public class CreateOrderTest extends BaseTest {
 
     private final List<String> colors;
+    private final OrderApi orderApi = new OrderApi();
 
     public CreateOrderTest(List<String> colors) {
         this.colors = colors;
@@ -32,58 +36,27 @@ public class CreateOrderTest {
         });
     }
 
-    @Before
-    public void setUp() {
-        RestAssured.baseURI = "https://qa-scooter.praktikum-services.ru";
-    }
-
     @Test
     public void canCreateOrderWithDifferentColors() {
-        Map<String, Object> body = buildOrderBody(colors);
+        Order order = new Order(
+                "Naruto",
+                "Uchiha",
+                "Konoha, 142 apt.",
+                "4",
+                "+78003553535",
+                5,
+                "2020-06-06",
+                "Saske, come back to Konoha",
+                colors
+        );
 
-        Response response = createOrder(body);
+        Response response = orderApi.createOrder(order);
 
-        checkStatusCode(response, 201);
-        checkTrackNotNull(response);
+        response.then()
+                .statusCode(201)
+                .body("track", notNullValue());
     }
 
-    @Step("Собрать тело запроса на создание заказа")
-    public Map<String, Object> buildOrderBody(List<String> colors) {
-        int uniq = new Random().nextInt(90) + 10;
+    // тут были степы, я их перенесла в классы в папке api
 
-
-        Map<String, Object> body = new HashMap<>();
-        body.put("firstName", "Naruto" + uniq);
-        body.put("lastName", "Uchiha");
-        body.put("address", "Konoha, 142 apt.");
-        body.put("metroStation", "4");
-        body.put("phone", "+7 800 355 35 " + uniq);
-        body.put("rentTime", 5);
-        body.put("deliveryDate", "2020-06-06");
-        body.put("comment", "Saske, come back to Konoha");
-
-        if (colors != null) {
-            body.put("color", colors);
-        }
-
-        return body;
-    }
-
-    @Step("Отправить запрос на создание заказа")
-    public Response createOrder(Map<String, Object> body) {
-        return given()
-                .header("Content-type", "application/json")
-                .body(body)
-                .post("/api/v1/orders");
-    }
-
-    @Step("Проверить код ответа")
-    public void checkStatusCode(Response response, int statusCode) {
-        response.then().statusCode(statusCode);
-    }
-
-    @Step("Проверить, что в ответе есть track")
-    public void checkTrackNotNull(Response response) {
-        response.then().body("track", notNullValue());
-    }
 }
