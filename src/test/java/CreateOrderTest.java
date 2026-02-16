@@ -1,16 +1,15 @@
 import org.junit.Test;
+import org.junit.After;
 
 import io.restassured.response.Response;
 
 import org.junit.runner.RunWith;
 import org.junit.runners.Parameterized;
 
-import java.util.*;
-
 import static org.hamcrest.Matchers.notNullValue;
 
 import api.OrderApi;
-import classes.Order;
+import model.Order;
 
 import java.util.Arrays;
 import java.util.Collection;
@@ -21,6 +20,7 @@ public class CreateOrderTest extends BaseTest {
 
     private final List<String> colors;
     private final OrderApi orderApi = new OrderApi();
+    private Integer track;
 
     public CreateOrderTest(List<String> colors) {
         this.colors = colors;
@@ -55,8 +55,17 @@ public class CreateOrderTest extends BaseTest {
         response.then()
                 .statusCode(201)
                 .body("track", notNullValue());
+
+        track = response.then().extract().path("track");
     }
 
     // тут были степы, я их перенесла в классы в папке api
-
+    @After
+    public void tearDown() {
+        if (track != null) {
+            orderApi.cancelOrder(track)
+                    .then()
+                    .statusCode(200);
+        }
+    }
 }

@@ -1,10 +1,11 @@
+import org.junit.After;
 import org.junit.Test;
 
 import io.restassured.response.Response;
 
 import api.CourierApi;
-import classes.Courier;
-import classes.CourierLogin;
+import model.Courier;
+import model.CourierLogin;
 
 import java.util.UUID;
 
@@ -14,6 +15,7 @@ import static org.hamcrest.Matchers.notNullValue;
 public class LoginCourierTest extends BaseTest {
 
     private final CourierApi courierApi = new CourierApi();
+    private Integer courierId;
 
     private String uniqueLogin() {
         return "ninja_" + UUID.randomUUID().toString().substring(0, 8);
@@ -27,13 +29,11 @@ public class LoginCourierTest extends BaseTest {
         courierApi.createCourier(new Courier(login, password, "saske"))
                 .then().statusCode(201);
 
-        int courierId = courierApi.loginCourier(new CourierLogin(login, password))
+        courierId = courierApi.loginCourier(new CourierLogin(login, password))
                 .then()
                 .statusCode(200)
                 .body("id", notNullValue())
                 .extract().path("id");
-
-        courierApi.deleteCourier(courierId).then().statusCode(200);
     }
 
     @Test
@@ -70,11 +70,9 @@ public class LoginCourierTest extends BaseTest {
                 .statusCode(404)
                 .body("message", equalTo("Учетная запись не найдена"));
 
-        int courierId = courierApi.loginCourier(new CourierLogin(login, password))
+        courierId = courierApi.loginCourier(new CourierLogin(login, password))
                 .then().statusCode(200)
                 .extract().path("id");
-
-        courierApi.deleteCourier(courierId).then().statusCode(200);
     }
 
     @Test
@@ -89,4 +87,12 @@ public class LoginCourierTest extends BaseTest {
 
     // тут были степы, я их перенесла в классы в папке api
 
+    @After
+    public void tearDown() {
+        if (courierId != null) {
+            courierApi.deleteCourier(courierId)
+                    .then()
+                    .statusCode(200);
+        }
+    }
 }

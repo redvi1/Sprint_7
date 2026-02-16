@@ -2,8 +2,8 @@ package api;
 
 import io.qameta.allure.Step;
 import io.restassured.response.Response;
-import classes.Courier;
-import classes.CourierLogin;
+import model.Courier;
+import model.CourierLogin;
 
 import static io.restassured.RestAssured.given;
 

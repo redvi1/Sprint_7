@@ -1,10 +1,11 @@
 import org.junit.Test;
+import org.junit.After;
 
 import io.restassured.response.Response;
 
 import api.CourierApi;
-import classes.Courier;
-import classes.CourierLogin;
+import model.Courier;
+import model.CourierLogin;
 
 import java.util.UUID;
 
@@ -15,6 +16,7 @@ import static org.hamcrest.Matchers.equalTo;
 public class CreateCourierTest extends BaseTest {
 
     private final CourierApi courierApi = new CourierApi();
+    private Integer courierId;
 
     private String uniqueLogin() {
         return "ninja_" + UUID.randomUUID().toString().substring(0, 8);
@@ -30,11 +32,10 @@ public class CreateCourierTest extends BaseTest {
         Response create = courierApi.createCourier(courier);
         create.then().statusCode(201).body("ok", equalTo(true));
 
-        int courierId = courierApi.loginCourier(new CourierLogin(login, password))
+        courierId = courierApi.loginCourier(new CourierLogin(login, password))
                 .then().statusCode(200).body("id", notNullValue())
                 .extract().path("id");
 
-        courierApi.deleteCourier(courierId).then().statusCode(200).body("ok", equalTo(true));
     }
 
     @Test
@@ -73,12 +74,20 @@ public class CreateCourierTest extends BaseTest {
                 .statusCode(409)
                 .body("message", equalTo("Этот логин уже используется"));
 
-        int courierId = courierApi.loginCourier(new CourierLogin(login, password))
+        courierId = courierApi.loginCourier(new CourierLogin(login, password))
                 .then().statusCode(200)
                 .extract().path("id");
 
-        courierApi.deleteCourier(courierId).then().statusCode(200);
     }
 
     // тут были степы, я их перенесла в классы в папке api
+
+    @After
+    public void tearDown() {
+        if (courierId != null) {
+            courierApi.deleteCourier(courierId)
+                    .then()
+                    .statusCode(200);
+        }
+    }
 }
